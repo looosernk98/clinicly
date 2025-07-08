@@ -16,9 +16,9 @@ connectCloudinary()
 // middlewares
 app.use(express.json())
 
-const allowedOrigins = ['https://clinicly-admin.vercel.app/*', 'https://clinicly.vercel.app/*']
+// const allowedOrigins = ['https://clinicly-admin.vercel.app/*', 'https://clinicly.vercel.app/*']
 app.use(cors({
-  origin: allowedOrigins,
+  origin: '*',
 }))
 
 // api endpoints
