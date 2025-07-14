@@ -53,11 +53,11 @@ const Navbar = () => {
               </div>
             </div>
             : 
-            <div className='flex items-center gap-6'>
-              <div className='text-sm font-medium cursor-pointer text-[#5F6FFF]'>Doctor/Admin Login</div>
+            <div className='flex items-center gap-6 hidden md:flex'>
+              <div className='text-sm font-medium cursor-pointer text-[#5F6FFF]'><a href={import.meta.env.VITE_ADMIN_APP_URL} target='_blank'>Admin / Doctor Login</a></div>
               <button 
               onClick={() => navigate('/login')} 
-              className='bg-primary text-white px-8 py-3 rounded-full font-light hidden md:block'>
+              className='bg-primary text-white px-8 py-3 rounded-full font-light'>
                Create account
             </button>
             </div>
@@ -75,6 +75,30 @@ const Navbar = () => {
             <NavLink onClick={() => setShowMenu(false)} to='/doctors' ><p className='px-4 py-2 rounded full inline-block'>ALL DOCTORS</p></NavLink>
             <NavLink onClick={() => setShowMenu(false)} to='/about' ><p className='px-4 py-2 rounded full inline-block'>ABOUT</p></NavLink>
             <NavLink onClick={() => setShowMenu(false)} to='/contact' ><p className='px-4 py-2 rounded full inline-block'>CONTACT</p></NavLink>
+            {!token && !userData && (
+              <>
+                <div className='w-full border-t border-gray-200 my-4'></div>
+                <div className='flex flex-col items-center gap-4 w-full'>
+                  <a 
+                    href={import.meta.env.VITE_ADMIN_APP_URL} 
+                    target='_blank' 
+                    className='text-sm font-medium cursor-pointer text-[#5F6FFF] px-4 py-2'
+                    onClick={() => setShowMenu(false)}
+                  >
+                    Admin / Doctor Login
+                  </a>
+                  <button 
+                    onClick={() => {
+                      navigate('/login')
+                      setShowMenu(false)
+                    }} 
+                    className='bg-primary text-white px-8 py-3 rounded-full font-light'
+                  >
+                    Create account
+                  </button>
+                </div>
+              </>
+            )}
           </ul>
         </div>
       </div>

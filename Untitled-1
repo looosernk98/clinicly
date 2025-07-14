@@ -1,0 +1,87 @@
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
+
+class Solution {
+    public int findTargetSumWays(int[] nums, int target) {
+        // For arrays with negative elements, we need a different approach
+        // We'll use a HashMap to track the number of ways to reach each sum
+        
+        Map<Integer, Integer> dp = new HashMap<>();
+        dp.put(0, 1); // Base case: one way to get sum 0 with no elements
+        
+        for(int num : nums) {
+            Map<Integer, Integer> newDp = new HashMap<>();
+            
+            for(Map.Entry<Integer, Integer> entry : dp.entrySet()) {
+                int sum = entry.getKey();
+                int count = entry.getValue();
+                
+                // Add current number
+                newDp.put(sum + num, newDp.getOrDefault(sum + num, 0) + count);
+                // Subtract current number  
+                newDp.put(sum - num, newDp.getOrDefault(sum - num, 0) + count);
+            }
+            
+            dp = newDp;
+        }
+        
+        return dp.getOrDefault(target, 0);
+    }
+
+    // Question: You are given an integer array nums of 2 * n integers. You need to partition nums into two arrays of length n to minimize the absolute difference of the sums of the arrays. To partition nums, put each element of nums into one of the two arrays.
+
+    // Return the minimum possible absolute difference.
+
+    public int minimumDifference(int[] nums) {
+        int sum = 0;
+        for(int v: nums) sum += v;
+        
+        // For negative elements, we need to handle the range properly
+        int target = sum / 2;
+        
+        // Find the closest subset sum to target
+        int s1 = findClosestSubsetSum(nums, target);
+        int s2 = sum - s1;
+        
+        return Math.abs(s1 - s2);
+    }
+    
+    public int findClosestSubsetSum(int arr[], int target) {
+        int n = arr.length;
+        
+        // Calculate the range of possible sums
+        int minSum = 0, maxSum = 0;
+        for(int num : arr) {
+            if(num < 0) minSum += num;
+            else maxSum += num;
+        }
+        
+        // Use a HashSet to track achievable sums
+        Set<Integer> possibleSums = new HashSet<>();
+        possibleSums.add(0);
+        
+        for(int num : arr) {
+            Set<Integer> newSums = new HashSet<>();
+            for(int sum : possibleSums) {
+                newSums.add(sum + num);
+            }
+            possibleSums.addAll(newSums);
+        }
+        
+        // Find the closest sum to target
+        int closest = 0;
+        int minDiff = Integer.MAX_VALUE;
+        
+        for(int sum : possibleSums) {
+            int diff = Math.abs(sum - target);
+            if(diff < minDiff) {
+                minDiff = diff;
+                closest = sum;
+            }
+        }
+        
+        return closest;
+    }
+} 
