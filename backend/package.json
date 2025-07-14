@@ -5,12 +5,15 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "server": "nodemon server.js"
+    "server": "nodemon server.js",
+    "add-doctors": "node scripts/addDoctors.js",
+    "update-doctor-images": "node scripts/updateDoctorImages.js"
   },
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "axios": "^1.6.0",
     "bcrypt": "^5.1.1",
     "cloudinary": "^2.3.0",
     "cors": "^2.8.5",
