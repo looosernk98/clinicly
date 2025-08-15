@@ -1,18 +1,18 @@
 import React from 'react'
 import Navbar from './components/Navbar'
 import { Routes, Route } from 'react-router-dom'
-import Home from './pages/Home'
-import Doctors from './pages/Doctors'
-import Login from './pages/Login'
-import About from './pages/About'
-import Contact from './pages/Contact'
-import Appointment from './pages/Appointment'
-import MyAppointments from './pages/MyAppointments'
-import MyProfile from './pages/MyProfile'
+import Home from './pages/home'
+import Doctors from './pages/doctors'
+import Login from './pages/login'
+import About from './pages/about'
+import Contact from './pages/contact'
+import Appointment from './pages/appointment'
+import MyAppointments from './pages/myAppointments'
+import MyProfile from './pages/myProfile'
 import Footer from './components/Footer'
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Verify from './pages/Verify'
+import Verify from './pages/verify'
 
 const App = () => {
   return (
