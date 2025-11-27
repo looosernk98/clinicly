@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import doctorModel from "../models/doctorModel.js";
-import appointmentModel from "../models/appointmentModel.js";
+import doctorModel from "../models/doctor.model.js";
+import appointmentModel from "../models/appointment.model.js";
 
 // API for doctor Login 
 const loginDoctor = async (req, res) => {

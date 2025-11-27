@@ -1,9 +1,9 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import validator from "validator";
-import userModel from "../models/userModel.js";
-import doctorModel from "../models/doctorModel.js";
-import appointmentModel from "../models/appointmentModel.js";
+import userModel from "../models/user.model.js";
+import doctorModel from "../models/doctor.model.js";
+import appointmentModel from "../models/appointment.model.js";
 import { v2 as cloudinary } from 'cloudinary'
 import stripe from "stripe";
 import razorpay from 'razorpay';
