@@ -1,18 +1,25 @@
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import validator from 'validator'
-import { config } from '../config/index.js'
 import { generateToken } from '../utils/jwt.util.js'
 import userModel from '../models/user.model.js'
 import doctorModel from '../models/doctor.model.js'
+import { splitFullNameToFirstLast } from '../utils/doctorName.util.js'
 
 class AuthService {
     // User Registration
     async registerUser(userData) {
-        const { name, email, password } = userData
+        const { name, first_name, last_name, email, password } = userData
 
-        // Validation
-        if (!name || !email || !password) {
+        let resolvedFirst = first_name != null ? String(first_name).trim() : ""
+        let resolvedLast = last_name != null ? String(last_name).trim() : ""
+        if (!resolvedFirst && name) {
+            const split = splitFullNameToFirstLast(name)
+            resolvedFirst = split.first_name
+            resolvedLast = split.last_name ?? ''
+        }
+
+        if (!resolvedFirst || !email || !password) {
             throw new Error('Missing required fields')
         }
 
@@ -34,17 +41,19 @@ class AuthService {
         const salt = await bcrypt.genSalt(10)
         const hashedPassword = await bcrypt.hash(password, salt)
 
-        // Create user
         const newUser = new userModel({
-            name,
+            first_name: resolvedFirst,
+            last_name: resolvedLast,
             email,
-            password: hashedPassword,
+            password_hash: hashedPassword,
         })
 
         const user = await newUser.save()
         const token = generateToken({ id: user._id })
 
-        return { user: { ...user._doc, password: undefined }, token }
+        const plain = typeof user.toObject === "function" ? user.toObject() : { ...user._doc }
+        delete plain.password_hash
+        return { user: plain, token }
     }
 
     // User Login
@@ -64,13 +73,15 @@ class AuthService {
             throw new Error('Invalid credentials')
         }
 
-        const isMatch = await bcrypt.compare(password, user.password)
+        const isMatch = await bcrypt.compare(password, user.password_hash)
         if (!isMatch) {
             throw new Error('Invalid credentials')
         }
 
         const token = generateToken({ id: user._id })
-        return { user: { ...user._doc, password: undefined }, token }
+        const plain = typeof user.toObject === "function" ? user.toObject() : { ...user._doc }
+        delete plain.password_hash
+        return { user: plain, token }
     }
 
     // Doctor Login
@@ -86,13 +97,15 @@ class AuthService {
             throw new Error('Invalid credentials')
         }
 
-        const isMatch = await bcrypt.compare(password, doctor.password)
+        const isMatch = await bcrypt.compare(password, doctor.password_hash)
         if (!isMatch) {
             throw new Error('Invalid credentials')
         }
 
         const token = generateToken({ id: doctor._id })
-        return { doctor: { ...doctor._doc, password: undefined }, token }
+        const docPlain = typeof doctor.toObject === "function" ? doctor.toObject() : { ...doctor._doc }
+        delete docPlain.password_hash
+        return { doctor: docPlain, token }
     }
 
     // Admin Login

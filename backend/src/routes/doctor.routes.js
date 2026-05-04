@@ -10,6 +10,14 @@ import {
     doctorProfile, 
     updateDoctorProfile 
 } from '../controllers/doctor.controller.js'
+import {
+    createAvailabilityRule,
+    updateAvailabilityRule,
+    deleteAvailabilityRule,
+    createDoctorLeave,
+    createDoctorBlock,
+    updateAppointmentStatusByDoctor
+} from '../controllers/scheduling.controller.js'
 import authDoctor from '../middlewares/authDoctor.middleware.js'
 
 const doctorRouter = express.Router()
@@ -31,8 +39,13 @@ doctorRouter.get("/dashboard", authDoctor, doctorDashboard)
 doctorRouter.get("/profile", authDoctor, doctorProfile)
 doctorRouter.post("/update-profile", authDoctor, updateDoctorProfile)
 
-// Doctor's available slots
-// doctorRouter.post()
+// Production scheduling APIs
+doctorRouter.post("/availability-rules", authDoctor, createAvailabilityRule)
+doctorRouter.put("/availability-rules/:id", authDoctor, updateAvailabilityRule)
+doctorRouter.delete("/availability-rules/:id", authDoctor, deleteAvailabilityRule)
+doctorRouter.post("/doctor-leaves", authDoctor, createDoctorLeave)
+doctorRouter.post("/doctor-blocks", authDoctor, createDoctorBlock)
+doctorRouter.patch("/appointments/:id/status", authDoctor, updateAppointmentStatusByDoctor)
 
 
 export default doctorRouter

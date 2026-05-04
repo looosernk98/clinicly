@@ -8,7 +8,11 @@
     "dev": "nodemon src/server.js",
     "server": "nodemon src/server.js",
     "add-doctors": "node scripts/addDoctors.js",
-    "update-doctor-images": "node scripts/updateDoctorImages.js"
+    "update-doctor-images": "node scripts/updateDoctorImages.js",
+    "migrate-doctors": "node scripts/migrate-doctors.js",
+    "migrate-users-to-patients": "node scripts/migrate-users-to-patients.js",
+    "migrate-appointments-userid-to-patientid": "node scripts/migrate-appointments-userid-to-patientid.js",
+    "migrate-legacy-appointments-to-v2": "node scripts/migrate-legacy-appointments-to-v2.js"
   },
   "author": "",
   "license": "ISC",

@@ -1,10 +1,3 @@
-// import mongoose from "mongoose";
+import slotLockModel from "./slotLock.model.js";
 
-// const slotSchema = new mongoose.Schema({
-//     docId: { type: String, required: true},
-//     slots: { type: Array, required: true},
-//     date: { type: Number, required: true},
-
-    
-
-// })
+export default slotLockModel;

@@ -3,10 +3,24 @@ import bcrypt from "bcrypt";
 import validator from "validator";
 import userModel from "../models/user.model.js";
 import doctorModel from "../models/doctor.model.js";
+import { splitFullNameToFirstLast } from "../utils/doctorName.util.js";
+import { mapPatientGender, parsePatientDob } from "../utils/patient.util.js";
 import appointmentModel from "../models/appointment.model.js";
 import { v2 as cloudinary } from 'cloudinary'
 import stripe from "stripe";
 import razorpay from 'razorpay';
+
+function addMinutesToTimeString(timeStr, minutesToAdd) {
+    const parts = String(timeStr || "").split(":");
+    const h = Number(parts[0]);
+    const m = Number(parts[1] ?? 0);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return String(timeStr || "");
+    let totalMinutes = h * 60 + m + minutesToAdd;
+    totalMinutes = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+    const hh = Math.floor(totalMinutes / 60);
+    const mm = totalMinutes % 60;
+    return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
 
 // Gateway Initialize
 const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY)
@@ -19,10 +33,17 @@ const razorpayInstance = new razorpay({
 const registerUser = async (req, res) => {
 
     try {
-        const { name, email, password } = req.body;
+        const { name, first_name, last_name, email, password } = req.body;
 
-        // checking for all data to register user
-        if (!name || !email || !password) {
+        let resolvedFirst = first_name?.trim();
+        let resolvedLast = (last_name ?? "").trim();
+        if (!resolvedFirst && name) {
+            const split = splitFullNameToFirstLast(name);
+            resolvedFirst = split.first_name;
+            resolvedLast = split.last_name ?? "";
+        }
+
+        if (!resolvedFirst || !email || !password) {
             return res.json({ success: false, message: 'Missing Details' })
         }
 
@@ -41,9 +62,10 @@ const registerUser = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt)
 
         const userData = {
-            name,
+            first_name: resolvedFirst,
+            last_name: resolvedLast,
             email,
-            password: hashedPassword,
+            password_hash: hashedPassword,
         }
 
         const newUser = new userModel(userData)
@@ -69,7 +91,7 @@ const loginUser = async (req, res) => {
             return res.json({ success: false, message: "User does not exist" })
         }
 
-        const isMatch = await bcrypt.compare(password, user.password)
+        const isMatch = await bcrypt.compare(password, user.password_hash)
 
         if (isMatch) {
             const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET)
@@ -89,7 +111,7 @@ const getProfile = async (req, res) => {
 
     try {
         const { userId } = req.body
-        const userData = await userModel.findById(userId).select('-password')
+        const userData = await userModel.findById(userId).select('-password_hash')
 
         res.json({ success: true, userData })
 
@@ -104,14 +126,32 @@ const updateProfile = async (req, res) => {
 
     try {
 
-        const { userId, name, phone, address, dob, gender } = req.body
+        const { userId, name, first_name, last_name, phone, address, dob, gender } = req.body
         const imageFile = req.file
 
-        if (!name || !phone || !dob || !gender) {
+        let fn = first_name?.trim();
+        let ln = (last_name ?? "").trim();
+        if (!fn && name) {
+            const split = splitFullNameToFirstLast(name);
+            fn = split.first_name;
+            ln = split.last_name ?? "";
+        }
+
+        if (!fn || !phone || !dob || !gender) {
             return res.json({ success: false, message: "Data Missing" })
         }
 
-        await userModel.findByIdAndUpdate(userId, { name, phone, address: JSON.parse(address), dob, gender })
+        const dobDate = parsePatientDob(dob);
+        const genderStored = mapPatientGender(gender);
+
+        await userModel.findByIdAndUpdate(userId, {
+            first_name: fn,
+            last_name: ln,
+            phone,
+            address: JSON.parse(address),
+            dob: dobDate,
+            gender: genderStored,
+        })
 
         if (imageFile) {
 
@@ -136,47 +176,31 @@ const bookAppointment = async (req, res) => {
     try {
 
         const { userId, docId, slotDate, slotTime } = req.body
-        const docData = await doctorModel.findById(docId).select("-password")
+        const docData = await doctorModel.findById(docId).select("-password_hash")
 
-        if (!docData.available) {
+        if (!docData?.is_profile_active) {
             return res.json({ success: false, message: 'Doctor Not Available' })
         }
 
-        let slots_booked = docData.slots_booked
-
-        // checking for slot availablity 
-        if (slots_booked[slotDate]) {
-            if (slots_booked[slotDate].includes(slotTime)) {
-                return res.json({ success: false, message: 'Slot Not Available' })
-            }
-            else {
-                slots_booked[slotDate].push(slotTime)
-            }
-        } else {
-            slots_booked[slotDate] = []
-            slots_booked[slotDate].push(slotTime)
-        }
-
-        const userData = await userModel.findById(userId).select("-password")
-
-        delete docData.slots_booked
+        const durationMin = docData.default_slot_duration || 30
+        const endTime = addMinutesToTimeString(slotTime, durationMin)
 
         const appointmentData = {
-            userId,
-            docId,
-            userData,
-            docData,
-            amount: docData.fees,
-            slotTime,
-            slotDate,
-            date: Date.now()
+            patient_id: userId,
+            doc_id: docId,
+            slot_date: slotDate,
+            start_time: slotTime,
+            end_time: endTime,
+            consultation_fee: docData.consultation_fee,
+            mode: "clinic",
+            payment: "pending",
+            status: "booked",
+            created_by: "PATIENT",
+            updated_by: "PATIENT",
         }
 
         const newAppointment = new appointmentModel(appointmentData)
         await newAppointment.save()
-
-        // save new slots data in docData
-        await doctorModel.findByIdAndUpdate(docId, { slots_booked })
 
         res.json({ success: true, message: 'Appointment Booked' })
 
@@ -191,26 +215,24 @@ const bookAppointment = async (req, res) => {
 const cancelAppointment = async (req, res) => {
     try {
 
-        const { userId, appointmentId } = req.body
+        const { userId, appointmentId, cancellationReason = '' } = req.body
         const appointmentData = await appointmentModel.findById(appointmentId)
 
         // verify appointment user 
-        if (appointmentData.userId !== userId) {
+        const uid = appointmentData.patient_id
+        if (String(uid) !== String(userId)) {
             return res.json({ success: false, message: 'Unauthorized action' })
         }
 
-        await appointmentModel.findByIdAndUpdate(appointmentId, { cancelled: true })
-
-        // releasing doctor slot 
-        const { docId, slotDate, slotTime } = appointmentData
-
-        const doctorData = await doctorModel.findById(docId)
-
-        let slots_booked = doctorData.slots_booked
-
-        slots_booked[slotDate] = slots_booked[slotDate].filter(e => e !== slotTime)
-
-        await doctorModel.findByIdAndUpdate(docId, { slots_booked })
+        await appointmentModel.findByIdAndUpdate(appointmentId, {
+            status: "cancelled",
+            cancelled: true,
+            updated_by: "PATIENT",
+            cancelled_by: "PATIENT",
+            cancelled_by_actor_id: userId,
+            cancelled_at: new Date(),
+            cancellation_reason: cancellationReason,
+        })
 
         res.json({ success: true, message: 'Appointment Cancelled' })
 
@@ -225,9 +247,25 @@ const listAppointment = async (req, res) => {
     try {
 
         const { userId } = req.body
-        const appointments = await appointmentModel.find({ userId })
+        const appointments = await appointmentModel
+            .find({ patient_id: userId })
+            .populate('doc_id', 'first_name last_name image specialization clinic_address')
 
-        res.json({ success: true, appointments })
+        const mapped = appointments.map((item) => {
+            const doctor = item.doc_id
+            return {
+                ...item.toObject({ virtuals: false }),
+                docData: doctor ? {
+                    _id: doctor._id,
+                    name: doctor.name,
+                    image: doctor.image || '',
+                    speciality: doctor.specialization,
+                    address: doctor.clinic_address || {},
+                } : null,
+            }
+        })
+
+        res.json({ success: true, appointments: mapped })
 
     } catch (error) {
         console.log(error)
@@ -249,7 +287,7 @@ const paymentRazorpay = async (req, res) => {
 
         // creating options for razorpay payment
         const options = {
-            amount: appointmentData.amount * 100,
+            amount: (appointmentData.consultation_fee ?? 0) * 100,
             currency: process.env.CURRENCY,
             receipt: appointmentId,
         }
@@ -272,7 +310,7 @@ const verifyRazorpay = async (req, res) => {
         const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id)
 
         if (orderInfo.status === 'paid') {
-            await appointmentModel.findByIdAndUpdate(orderInfo.receipt, { payment: true })
+            await appointmentModel.findByIdAndUpdate(orderInfo.receipt, { payment: "completed" })
             res.json({ success: true, message: "Payment Successful" })
         }
         else {
@@ -305,7 +343,7 @@ const paymentStripe = async (req, res) => {
                 product_data: {
                     name: "Appointment Fees"
                 },
-                unit_amount: appointmentData.amount * 100
+                unit_amount: (appointmentData.consultation_fee ?? 0) * 100
             },
             quantity: 1
         }]
@@ -331,7 +369,7 @@ const verifyStripe = async (req, res) => {
         const { appointmentId, success } = req.body
 
         if (success === "true") {
-            await appointmentModel.findByIdAndUpdate(appointmentId, { payment: true })
+            await appointmentModel.findByIdAndUpdate(appointmentId, { payment: "completed" })
             return res.json({ success: true, message: 'Payment Successful' })
         }
 

@@ -1,6 +1,5 @@
-import React, { useEffect } from 'react'
+import { useEffect, useContext } from 'react'
 import { assets } from '../../assets/assets'
-import { useContext } from 'react'
 import { AdminContext } from '../../context/AdminContext'
 import { AppContext } from '../../context/AppContext'
 
@@ -30,21 +29,35 @@ const AllAppointments = () => {
           <p>Fees</p>
           <p>Action</p>
         </div>
-        {appointments.map((item, index) => (
-          <div className='flex flex-wrap justify-between max-sm:gap-2 sm:grid sm:grid-cols-[0.5fr_3fr_1fr_3fr_3fr_1fr_1fr] items-center text-gray-500 py-3 px-6 border-b hover:bg-gray-50' key={index}>
+        {appointments.map((item, index) => {
+          const isCancelled = item.cancelled || item.status === 'cancelled'
+          const isCompleted = item.isCompleted || item.status === 'completed'
+          const rowKey = item._id || `${item.slot_date}-${item.start_time}-${index}`
+          let actionNode = (
+            <button onClick={() => cancelAppointment(item._id)} type='button' className='cursor-pointer'>
+              <img className='w-10' src={assets.cancel_icon} alt="Cancel appointment" />
+            </button>
+          )
+          if (isCancelled) {
+            actionNode = <p className='text-red-400 text-xs font-medium'>Cancelled</p>
+          } else if (isCompleted) {
+            actionNode = <p className='text-green-500 text-xs font-medium'>Completed</p>
+          }
+          return (
+          <div className='flex flex-wrap justify-between max-sm:gap-2 sm:grid sm:grid-cols-[0.5fr_3fr_1fr_3fr_3fr_1fr_1fr] items-center text-gray-500 py-3 px-6 border-b hover:bg-gray-50' key={rowKey}>
             <p className='max-sm:hidden'>{index+1}</p>
             <div className='flex items-center gap-2'>
-              <img src={item.userData.image} className='w-8 rounded-full' alt="" /> <p>{item.userData.name}</p>
+              <img src={item.patientData?.image} className='w-8 rounded-full' alt="" /> <p>{item.patientData?.name || 'N/A'}</p>
             </div>
-            <p className='max-sm:hidden'>{calculateAge(item.userData.dob)}</p>
-            <p>{slotDateFormat(item.slotDate)}, {item.slotTime}</p>
+            <p className='max-sm:hidden'>{item.patientData?.age ?? calculateAge(item.patientData?.dob) ?? 'N/A'}</p>
+            <p>{slotDateFormat(item.slot_date)}, {item.start_time}</p>
             <div className='flex items-center gap-2'>
-              <img src={item.docData.image} className='w-8 rounded-full bg-gray-200' alt="" /> <p>{item.docData.name}</p>
+              <img src={item.docData?.image} className='w-8 rounded-full bg-gray-200' alt="" /> <p>{item.docData?.name || 'N/A'}</p>
             </div>
-            <p>{currency}{item.amount}</p>
-            {item.cancelled ? <p className='text-red-400 text-xs font-medium'>Cancelled</p> : item.isCompleted ? <p className='text-green-500 text-xs font-medium'>Completed</p> : <img onClick={() => cancelAppointment(item._id)} className='w-10 cursor-pointer' src={assets.cancel_icon} alt="" />}
+            <p>{currency}{item.consultation_fee}</p>
+            {actionNode}
           </div>
-        ))}
+        )})}
       </div>
 
     </div>

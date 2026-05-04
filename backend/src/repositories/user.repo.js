@@ -37,7 +37,7 @@ class UserRepository {
 
     // Find users with filters
     async findWithFilters(filters, options = {}) {
-        const { page = 1, limit = 10, sort = { createdAt: -1 } } = options
+        const { page = 1, limit = 10, sort = { created_at: -1 } } = options
         const skip = (page - 1) * limit
 
         const query = userModel.find(filters)
@@ -63,8 +63,8 @@ class UserRepository {
     async findAll(page = 1, limit = 10) {
         const skip = (page - 1) * limit
         return await userModel.find({})
-            .select('-password')
-            .sort({ createdAt: -1 })
+            .select('-password_hash')
+            .sort({ created_at: -1 })
             .skip(skip)
             .limit(limit)
     }

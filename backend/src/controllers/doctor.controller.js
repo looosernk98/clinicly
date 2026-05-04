@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import doctorModel from "../models/doctor.model.js";
 import appointmentModel from "../models/appointment.model.js";
+import { mapAppointmentPanelDto } from "../utils/appointmentPanelDto.util.js";
 
 // API for doctor Login 
 const loginDoctor = async (req, res) => {
@@ -15,7 +16,7 @@ const loginDoctor = async (req, res) => {
             return res.json({ success: false, message: "Invalid credentials" })
         }
 
-        const isMatch = await bcrypt.compare(password, user.password)
+        const isMatch = await bcrypt.compare(password, user.password_hash)
 
         if (isMatch) {
             const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET)
@@ -36,9 +37,14 @@ const appointmentsDoctor = async (req, res) => {
     try {
 
         const { docId } = req.body
-        const appointments = await appointmentModel.find({ docId })
+        const appointments = await appointmentModel
+            .find({ doc_id: docId })
+            .populate('patient_id', 'first_name last_name image dob age')
+            .populate('doc_id', 'first_name last_name image')
 
-        res.json({ success: true, appointments })
+        const mapped = appointments.map((item) => mapAppointmentPanelDto(item))
+
+        res.json({ success: true, appointments: mapped })
 
     } catch (error) {
         console.log(error)
@@ -50,11 +56,19 @@ const appointmentsDoctor = async (req, res) => {
 const appointmentCancel = async (req, res) => {
     try {
 
-        const { docId, appointmentId } = req.body
+        const { docId, appointmentId, cancellationReason = '' } = req.body
 
         const appointmentData = await appointmentModel.findById(appointmentId)
-        if (appointmentData && appointmentData.docId === docId) {
-            await appointmentModel.findByIdAndUpdate(appointmentId, { cancelled: true })
+        if (appointmentData && String(appointmentData.doc_id) === String(docId)) {
+            await appointmentModel.findByIdAndUpdate(appointmentId, {
+                status: "cancelled",
+                cancelled: true,
+                updated_by: "DOCTOR",
+                cancelled_by: "DOCTOR",
+                cancelled_by_actor_id: docId,
+                cancelled_at: new Date(),
+                cancellation_reason: cancellationReason,
+            })
             return res.json({ success: true, message: 'Appointment Cancelled' })
         }
 
@@ -74,8 +88,12 @@ const appointmentComplete = async (req, res) => {
         const { docId, appointmentId } = req.body
 
         const appointmentData = await appointmentModel.findById(appointmentId)
-        if (appointmentData && appointmentData.docId === docId) {
-            await appointmentModel.findByIdAndUpdate(appointmentId, { isCompleted: true })
+        if (appointmentData && String(appointmentData.doc_id) === String(docId)) {
+            await appointmentModel.findByIdAndUpdate(appointmentId, {
+                status: "completed",
+                isCompleted: true,
+                updated_by: "DOCTOR",
+            })
             return res.json({ success: true, message: 'Appointment Completed' })
         }
 
@@ -92,7 +110,7 @@ const appointmentComplete = async (req, res) => {
 const doctorList = async (req, res) => {
     try {
 
-        const doctors = await doctorModel.find({}).select(['-password', '-email'])
+        const doctors = await doctorModel.find({}).select(['-password_hash', '-email'])
         res.json({ success: true, doctors })
 
     } catch (error) {
@@ -109,7 +127,9 @@ const changeAvailablity = async (req, res) => {
         const { docId } = req.body
 
         const docData = await doctorModel.findById(docId)
-        await doctorModel.findByIdAndUpdate(docId, { available: !docData.available })
+        await doctorModel.findByIdAndUpdate(docId, {
+            is_profile_active: !docData.is_profile_active,
+        })
         res.json({ success: true, message: 'Availablity Changed' })
 
     } catch (error) {
@@ -123,7 +143,7 @@ const doctorProfile = async (req, res) => {
     try {
 
         const { docId } = req.body
-        const profileData = await doctorModel.findById(docId).select('-password')
+        const profileData = await doctorModel.findById(docId).select('-password_hash')
 
         res.json({ success: true, profileData })
 
@@ -139,7 +159,12 @@ const updateDoctorProfile = async (req, res) => {
 
         const { docId, fees, address, available } = req.body
 
-        await doctorModel.findByIdAndUpdate(docId, { fees, address, available })
+        const update = {}
+        if (fees !== undefined) update.consultation_fee = fees
+        if (address !== undefined) update.clinic_address = address
+        if (available !== undefined) update.is_profile_active = available
+
+        await doctorModel.findByIdAndUpdate(docId, update)
 
         res.json({ success: true, message: 'Profile Updated' })
 
@@ -155,31 +180,42 @@ const doctorDashboard = async (req, res) => {
 
         const { docId } = req.body
 
-        const appointments = await appointmentModel.find({ docId })
+        const appointments = await appointmentModel
+            .find({ doc_id: docId })
+            .populate('patient_id', 'first_name last_name image dob age')
+            .populate('doc_id', 'first_name last_name image')
 
         let earnings = 0
 
         appointments.map((item) => {
-            if (item.isCompleted || item.payment) {
-                earnings += item.amount
+            const paid =
+                item.payment === "completed" ||
+                item.payment === true ||
+                item.status === "completed";
+            if (paid) {
+                earnings += item.consultation_fee ?? 0
             }
         })
 
         let patients = []
 
-        appointments.map((item) => {
-            if (!patients.includes(item.userId)) {
-                patients.push(item.userId)
+        appointments.forEach((item) => {
+            const p = item.patient_id
+            const pid = p && typeof p === 'object' && p._id ? p._id : p
+            if (pid != null && !patients.includes(String(pid))) {
+                patients.push(String(pid))
             }
         })
 
 
 
+        const mapped = appointments.map((item) => mapAppointmentPanelDto(item))
+
         const dashData = {
             earnings,
             appointments: appointments.length,
             patients: patients.length,
-            latestAppointments: appointments.reverse()
+            latestAppointments: mapped.toReversed()
         }
 
         res.json({ success: true, dashData })

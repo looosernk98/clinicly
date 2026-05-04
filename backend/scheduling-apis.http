@@ -1,0 +1,147 @@
+### Clinicly Scheduling APIs
+### Update these values before running requests.
+@baseUrl = http://localhost:4000/api
+@doctorToken = REPLACE_WITH_DTOKEN
+@patientToken = REPLACE_WITH_USER_TOKEN
+@adminToken = REPLACE_WITH_ATOKEN
+@doctorId = REPLACE_WITH_DOCTOR_ID
+@availabilityRuleId = REPLACE_WITH_RULE_ID
+@appointmentId = REPLACE_WITH_APPOINTMENT_ID
+
+### ------------------------------------------------------------
+### Doctor APIs
+### ------------------------------------------------------------
+
+### Create availability rule
+POST {{baseUrl}}/availability-rules
+dtoken: {{doctorToken}}
+Content-Type: application/json
+
+{
+  "dayOfWeek": 1,
+  "startTime": "09:00",
+  "endTime": "13:00",
+  "slotDurationMin": 30,
+  "bufferMin": 10,
+  "timezone": "Asia/Kolkata",
+  "isActive": true
+}
+
+### Update availability rule
+PUT {{baseUrl}}/availability-rules/{{availabilityRuleId}}
+dtoken: {{doctorToken}}
+Content-Type: application/json
+
+{
+  "startTime": "10:00",
+  "endTime": "14:00",
+  "slotDurationMin": 20
+}
+
+### Soft delete availability rule
+DELETE {{baseUrl}}/availability-rules/{{availabilityRuleId}}
+dtoken: {{doctorToken}}
+
+### Create doctor leave
+POST {{baseUrl}}/doctor-leaves
+dtoken: {{doctorToken}}
+Content-Type: application/json
+
+{
+  "startDate": "2026-05-01",
+  "endDate": "2026-05-03",
+  "reason": "Conference leave"
+}
+
+### Create doctor block (time-specific)
+POST {{baseUrl}}/doctor-blocks
+dtoken: {{doctorToken}}
+Content-Type: application/json
+
+{
+  "date": "2026-05-06",
+  "startTime": "12:00",
+  "endTime": "13:30",
+  "reason": "Emergency surgery"
+}
+
+### Doctor marks appointment status: COMPLETED / NO_SHOW
+PATCH {{baseUrl}}/appointments/{{appointmentId}}/status
+dtoken: {{doctorToken}}
+Content-Type: application/json
+
+{
+  "status": "COMPLETED"
+}
+
+### ------------------------------------------------------------
+### Patient APIs
+### ------------------------------------------------------------
+
+### Get dynamic slots for a doctor/date
+GET {{baseUrl}}/doctors/{{doctorId}}/slots?date=2026-05-06&clinicId=main-clinic
+
+### Book appointment (slot lock + create appointment)
+POST {{baseUrl}}/appointments
+token: {{patientToken}}
+Content-Type: application/json
+
+{
+  "doctorId": "{{doctorId}}",
+  "date": "2026-05-06",
+  "startTime": "10:00",
+  "endTime": "10:30",
+  "mode": "clinic",
+  "consultationFee": 800,
+  "clinicId": "main-clinic"
+}
+
+### Reschedule appointment
+PUT {{baseUrl}}/appointments/{{appointmentId}}/reschedule
+token: {{patientToken}}
+Content-Type: application/json
+
+{
+  "date": "2026-05-06",
+  "startTime": "11:00",
+  "endTime": "11:30",
+  "clinicId": "main-clinic"
+}
+
+### Cancel appointment
+DELETE {{baseUrl}}/appointments/{{appointmentId}}
+token: {{patientToken}}
+
+### ------------------------------------------------------------
+### Admin APIs
+### ------------------------------------------------------------
+
+### Create holiday
+POST {{baseUrl}}/holidays
+atoken: {{adminToken}}
+Content-Type: application/json
+
+{
+  "date": "2026-05-10",
+  "clinicId": "main-clinic",
+  "isGlobal": false,
+  "reason": "Clinic maintenance"
+}
+
+### Create emergency block
+POST {{baseUrl}}/emergency-blocks
+atoken: {{adminToken}}
+Content-Type: application/json
+
+{
+  "doctorId": "{{doctorId}}",
+  "date": "2026-05-06",
+  "startTime": "15:00",
+  "endTime": "16:00",
+  "reason": "Emergency freeze"
+}
+
+### Get analytics report
+GET {{baseUrl}}/reports/analytics
+atoken: {{adminToken}}
+

@@ -10,18 +10,32 @@ const AppContextProvider = (props) => {
 
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-    // Function to format the date eg. ( 20_01_2000 => 20 Jan 2000 )
+    // Supports legacy dd_mm_yyyy and ISO yyyy-mm-dd inputs.
     const slotDateFormat = (slotDate) => {
-        const dateArray = slotDate.split('_')
-        return dateArray[0] + " " + months[Number(dateArray[1])] + " " + dateArray[2]
+        if (!slotDate || typeof slotDate !== 'string') return 'N/A'
+
+        if (slotDate.includes('_')) {
+            const [day, month, year] = slotDate.split('_')
+            if (!day || !month || !year) return slotDate
+            return `${day} ${months[Number(month) - 1] || month} ${year}`
+        }
+
+        const parsed = new Date(slotDate)
+        if (Number.isNaN(parsed.getTime())) return slotDate
+        return `${parsed.getDate()} ${months[parsed.getMonth()]} ${parsed.getFullYear()}`
     }
 
     // Function to calculate the age eg. ( 20_01_2000 => 24 )
     const calculateAge = (dob) => {
+        if (!dob) return 'N/A'
         const today = new Date()
         const birthDate = new Date(dob)
+        if (Number.isNaN(birthDate.getTime())) return 'N/A'
         let age = today.getFullYear() - birthDate.getFullYear()
-        return age
+        const monthDiff = today.getMonth() - birthDate.getMonth()
+        const dayDiff = today.getDate() - birthDate.getDate()
+        if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age--
+        return String(age)
     }
 
     const value = {

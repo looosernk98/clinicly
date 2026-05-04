@@ -2,11 +2,15 @@ import validator from 'validator'
 
 export const validateUserRegistration = (data) => {
     const errors = []
-    const { name, email, password } = data
+    const { name, first_name, email, password } = data
 
-    // Name validation
-    if (!name || name.trim().length < 2) {
-        errors.push('Name must be at least 2 characters long')
+    const displayName =
+        (first_name != null && String(first_name).trim()) ||
+        (name != null && String(name).trim()) ||
+        ""
+
+    if (!displayName || displayName.length < 2) {
+        errors.push('Name must be at least 2 characters long (provide name or first_name)')
     }
 
     // Email validation

@@ -5,6 +5,8 @@ import bcrypt from "bcrypt";
 import validator from "validator";
 import { v2 as cloudinary } from "cloudinary";
 import userModel from "../models/user.model.js";
+import { splitFullNameToFirstLast } from "../utils/doctorName.util.js";
+import { mapAppointmentPanelDto } from "../utils/appointmentPanelDto.util.js";
 
 // API for admin login
 const loginAdmin = async (req, res) => {
@@ -31,8 +33,13 @@ const loginAdmin = async (req, res) => {
 const appointmentsAdmin = async (req, res) => {
     try {
 
-        const appointments = await appointmentModel.find({})
-        res.json({ success: true, appointments })
+        const appointments = await appointmentModel
+            .find({})
+            .populate('patient_id', 'first_name last_name image dob age')
+            .populate('doc_id', 'first_name last_name image')
+
+        const mappedAppointments = appointments.map((item) => mapAppointmentPanelDto(item))
+        res.json({ success: true, appointments: mappedAppointments })
 
     } catch (error) {
         console.log(error)
@@ -45,8 +52,15 @@ const appointmentsAdmin = async (req, res) => {
 const appointmentCancel = async (req, res) => {
     try {
 
-        const { appointmentId } = req.body
-        await appointmentModel.findByIdAndUpdate(appointmentId, { cancelled: true })
+        const { appointmentId, cancellationReason = '' } = req.body
+        await appointmentModel.findByIdAndUpdate(appointmentId, {
+            status: "cancelled",
+            cancelled: true,
+            updated_by: "ADMIN",
+            cancelled_by: "ADMIN",
+            cancelled_at: new Date(),
+            cancellation_reason: cancellationReason,
+        })
 
         res.json({ success: true, message: 'Appointment Cancelled' })
 
@@ -88,18 +102,20 @@ const addDoctor = async (req, res) => {
         const imageUpload = await cloudinary.uploader.upload(imageFile.path, { resource_type: "image" })
         const imageUrl = imageUpload.secure_url
 
+        const { first_name, last_name } = splitFullNameToFirstLast(name)
+
         const doctorData = {
-            name,
+            first_name,
+            last_name,
             email,
             image: imageUrl,
-            password: hashedPassword,
-            speciality,
+            password_hash: hashedPassword,
+            specialization: speciality,
             degree,
             experience,
             about,
-            fees,
-            address: JSON.parse(address),
-            date: Date.now()
+            consultation_fee: Number(fees),
+            clinic_address: JSON.parse(address),
         }
 
         const newDoctor = new doctorModel(doctorData)
@@ -116,7 +132,7 @@ const addDoctor = async (req, res) => {
 const allDoctors = async (req, res) => {
     try {
 
-        const doctors = await doctorModel.find({}).select('-password')
+        const doctors = await doctorModel.find({}).select('-password_hash')
         res.json({ success: true, doctors })
 
     } catch (error) {
@@ -130,14 +146,19 @@ const adminDashboard = async (req, res) => {
     try {
 
         const doctors = await doctorModel.find({})
-        const users = await userModel.find({})
-        const appointments = await appointmentModel.find({})
+        const patients = await userModel.find({})
+        const appointments = await appointmentModel
+            .find({})
+            .populate('patient_id', 'first_name last_name image dob age')
+            .populate('doc_id', 'first_name last_name image')
+
+        const mappedLatestAppointments = appointments.toReversed().map((item) => mapAppointmentPanelDto(item))
 
         const dashData = {
             doctors: doctors.length,
             appointments: appointments.length,
-            patients: users.length,
-            latestAppointments: appointments.reverse()
+            patients: patients.length,
+            latestAppointments: mappedLatestAppointments
         }
 
         res.json({ success: true, dashData })
@@ -395,19 +416,21 @@ const bulkAddDoctors = async (req, res) => {
                 const salt = await bcrypt.genSalt(10);
                 const hashedPassword = await bcrypt.hash(doctorData.password, salt);
 
+                const { first_name, last_name } = splitFullNameToFirstLast(doctorData.name);
+
                 // Create doctor object
                 const newDoctor = new doctorModel({
-                    name: doctorData.name,
+                    first_name,
+                    last_name,
                     email: doctorData.email,
-                    password: hashedPassword,
+                    password_hash: hashedPassword,
                     image: imageUrl,
-                    speciality: doctorData.speciality,
+                    specialization: doctorData.speciality,
                     degree: doctorData.degree,
                     experience: doctorData.experience,
                     about: doctorData.about,
-                    fees: doctorData.fees,
-                    address: doctorData.address,
-                    date: Date.now()
+                    consultation_fee: Number(doctorData.fees),
+                    clinic_address: doctorData.address,
                 });
 
                 await newDoctor.save();
@@ -483,7 +506,7 @@ const updateDoctorImages = async (req, res) => {
                 // Update the doctor's image
                 await doctorModel.findByIdAndUpdate(existingDoctor._id, { image: imageUrl });
                 updatedCount++;
-                console.log(`✅ Updated image for: ${existingDoctor.name}`);
+                console.log(`✅ Updated image for: ${existingDoctor.email}`);
 
             } catch (error) {
                 console.log(`Error updating doctor ${doctorImage.email}:`, error.message);

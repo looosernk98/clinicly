@@ -10,6 +10,11 @@ import {
     updateDoctorImages 
 } from '../controllers/admin.controller.js'
 import { changeAvailablity } from '../controllers/doctor.controller.js'
+import {
+    createHoliday,
+    createEmergencyBlock,
+    getAnalyticsReport
+} from '../controllers/scheduling.controller.js'
 import authAdmin from '../middlewares/authAdmin.middleware.js'
 import upload from '../middlewares/multer.middleware.js'
 
@@ -31,5 +36,10 @@ adminRouter.post("/cancel-appointment", authAdmin, appointmentCancel)
 
 // Dashboard routes
 adminRouter.get("/dashboard", authAdmin, adminDashboard)
+
+// Production scheduling APIs
+adminRouter.post("/holidays", authAdmin, createHoliday)
+adminRouter.post("/emergency-blocks", authAdmin, createEmergencyBlock)
+adminRouter.get("/reports/analytics", authAdmin, getAnalyticsReport)
 
 export default adminRouter
