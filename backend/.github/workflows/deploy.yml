@@ -1,0 +1,38 @@
+name: "Deploy Clinicly backend to Render"
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Deploy Via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{secrets.SSH_HOST}}
+          username: root
+          key: ${{secrets.SSH_KEY}}
+          script: |
+            cd /root/backend
+            git pull
+            docker compose up -d --build
+
+# use below command to generate ssh_key but run in that folder where you want to generate
+# ssh-keygen -t rsa -b 4096 -C "<name>"
+# you will be asked to name a file (put it as private)
+# then two files will be created private and private.pub (public key)
+# put public ssh key in your VPS server folder under authrozed keys
+# put private key in github secret key
+# ideally both should be deleted and never commit that
+
+
+      
+
+    
+

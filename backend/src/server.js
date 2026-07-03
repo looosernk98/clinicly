@@ -1,10 +1,12 @@
 import 'dotenv/config'
 import app from './app.js'
+import dotenv from 'dotenv';
 import connectDB from './database/connection.js'
 import connectCloudinary from './config/cloudinary.js'
 import { config } from './config/index.js'
 import { startNoShowWatcher } from './jobs/noShow.job.js'
 
+dotenv.config()
 // Initialize database connections
 connectDB()
 connectCloudinary()

@@ -170,47 +170,6 @@ const updateProfile = async (req, res) => {
     }
 }
 
-// API to book appointment 
-const bookAppointment = async (req, res) => {
-
-    try {
-
-        const { userId, docId, slotDate, slotTime } = req.body
-        const docData = await doctorModel.findById(docId).select("-password_hash")
-
-        if (!docData?.is_profile_active) {
-            return res.json({ success: false, message: 'Doctor Not Available' })
-        }
-
-        const durationMin = docData.default_slot_duration || 30
-        const endTime = addMinutesToTimeString(slotTime, durationMin)
-
-        const appointmentData = {
-            patient_id: userId,
-            doc_id: docId,
-            slot_date: slotDate,
-            start_time: slotTime,
-            end_time: endTime,
-            consultation_fee: docData.consultation_fee,
-            mode: "clinic",
-            payment: "pending",
-            status: "booked",
-            created_by: "PATIENT",
-            updated_by: "PATIENT",
-        }
-
-        const newAppointment = new appointmentModel(appointmentData)
-        await newAppointment.save()
-
-        res.json({ success: true, message: 'Appointment Booked' })
-
-    } catch (error) {
-        console.log(error)
-        res.json({ success: false, message: error.message })
-    }
-
-}
-
 // API to cancel appointment
 const cancelAppointment = async (req, res) => {
     try {
@@ -218,21 +177,22 @@ const cancelAppointment = async (req, res) => {
         const { userId, appointmentId, cancellationReason = '' } = req.body
         const appointmentData = await appointmentModel.findById(appointmentId)
 
-        // verify appointment user 
-        const uid = appointmentData.patient_id
-        if (String(uid) !== String(userId)) {
-            return res.json({ success: false, message: 'Unauthorized action' })
+        if (!appointmentData || String(appointmentData.patient_id) !== String(userId)) {
+            return res.json({ success: false, message: 'Appointment not found' })
         }
 
-        await appointmentModel.findByIdAndUpdate(appointmentId, {
-            status: "cancelled",
-            cancelled: true,
-            updated_by: "PATIENT",
-            cancelled_by: "PATIENT",
-            cancelled_by_actor_id: userId,
-            cancelled_at: new Date(),
-            cancellation_reason: cancellationReason,
-        })
+        if (appointmentData.status === "cancelled" || appointmentData.cancelled) {
+            return res.json({ success: false, message: 'Appointment is already cancelled' })
+        }
+
+        appointmentData.status = "cancelled"
+        appointmentData.cancelled = true
+        appointmentData.updated_by = "PATIENT"
+        appointmentData.cancelled_by = "PATIENT"
+        appointmentData.cancelled_by_actor_id = userId
+        appointmentData.cancelled_at = new Date()
+        appointmentData.cancellation_reason = cancellationReason
+        await appointmentData.save()
 
         res.json({ success: true, message: 'Appointment Cancelled' })
 
@@ -250,6 +210,7 @@ const listAppointment = async (req, res) => {
         const appointments = await appointmentModel
             .find({ patient_id: userId })
             .populate('doc_id', 'first_name last_name image specialization clinic_address')
+            .sort({ created_at: -1 })
 
         const mapped = appointments.map((item) => {
             const doctor = item.doc_id
@@ -387,7 +348,6 @@ export {
     registerUser,
     getProfile,
     updateProfile,
-    bookAppointment,
     listAppointment,
     cancelAppointment,
     paymentRazorpay,

@@ -4,7 +4,6 @@ import {
     registerUser, 
     getProfile, 
     updateProfile, 
-    bookAppointment, 
     listAppointment, 
     cancelAppointment, 
     paymentRazorpay, 
@@ -32,7 +31,6 @@ userRouter.get("/get-profile", authUser, getProfile)
 userRouter.post("/update-profile", upload.single('image'), authUser, updateProfile)
 
 // Appointment routes
-userRouter.post("/book-appointment", authUser, bookAppointment)
 userRouter.get("/appointments", authUser, listAppointment)
 userRouter.post("/cancel-appointment", authUser, cancelAppointment)
 

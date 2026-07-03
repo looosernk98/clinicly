@@ -29,7 +29,7 @@ const MyAppointments: React.FC = () => {
   const getUserAppointments = async (): Promise<void> => {
     try {
       const { data } = await axios.get(backendUrl + '/api/user/appointments', { headers: { token } })
-      setAppointments(data.appointments.reverse())
+      setAppointments(data?.success ? data.appointments || [] : [])
     } catch (error) {
       console.log(error)
       if (error instanceof Error) {
@@ -44,7 +44,7 @@ const MyAppointments: React.FC = () => {
       const { data } = await axios.post(backendUrl + '/api/user/cancel-appointment', { appointmentId }, { headers: { token } })
 
       if (data.success) {
-        toast.success(data.message)
+        toast.success(data.message || 'Appointment cancelled')
         getUserAppointments()
       } else {
         toast.error(data.message)
